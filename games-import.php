@@ -7,31 +7,31 @@ Version: .1
 Author: Kunal Malviya
 */
 
-// // If this file is called directly, abort.
-// if ( ! defined( 'WPINC' ) ) {
-// 	die;
-// }
+// If this file is called directly, abort.
+if ( ! defined( 'WPINC' ) ) {
+	die;
+}
 
 require_once( ABSPATH . 'wp-admin/includes/taxonomy.php');
 include_once( ABSPATH . 'wp-admin/includes/image.php' );
 include 'admin/functions.php';
 
-// function games_importer_custom_cron_schedule( $schedules ) {
-//     $schedules['every_one_minute'] = array(
-//         'interval' => 60, // Every 1 hours
-//         'display'  => __( 'Every 1 minutes' ),
-//     );
-//     return $schedules;
-// }
-// add_filter( 'cron_schedules', 'games_importer_custom_cron_schedule' );
+function games_importer_custom_cron_schedule( $schedules ) {
+    $schedules['every_one_minute'] = array(
+        'interval' => 60, // Every 1 hours
+        'display'  => __( 'Every 1 minutes' ),
+    );
+    return $schedules;
+}
+add_filter( 'cron_schedules', 'games_importer_custom_cron_schedule' );
 
-// // Schedule an action if it's not already scheduled
-// if ( ! wp_next_scheduled( 'games_importer_cron_hook' ) ) {
-//     wp_schedule_event( time(), 'every_one_minute', 'games_importer_cron_hook' );
-// }
+// Schedule an action if it's not already scheduled
+if ( ! wp_next_scheduled( 'games_importer_cron_hook' ) ) {
+    wp_schedule_event( time(), 'every_one_minute', 'games_importer_cron_hook' );
+}
 
-// //// Hook into that action that'll fire every six hours
-// add_action( 'games_importer_cron_hook', 'per_min_event' );
+//// Hook into that action that'll fire every six hours
+add_action( 'games_importer_cron_hook', 'per_min_event' );
 
 // add_action('init', 'setTestCategories');
 // function setTestCategories() {
@@ -46,7 +46,7 @@ function per_min_event() {
 		return;
 	}
 
-	/****** DB COUNTER CODE: START *****
+	/****** DB COUNTER CODE: START ******/
 	$counter = get_option('_counter');
 
 	// If counter is set in db then update
@@ -64,13 +64,13 @@ function per_min_event() {
 	// Calling the games api to get vr games
 	$returnString = get_games_by_tag( 1 );
 
-	// // If response is not null 
-	// if(count($returnString['data']) > 0) {
-	// 	update_option('_counter_response_'.$counter, json_encode($returnString));
-	// } else {
-	// 	// update_option('_counter', 0);		
-	// 	update_option('rawg_games_import_started', 'no');
-	// }
+	// If response is not null 
+	if(count($returnString['data']) > 0) {
+		update_option('_counter_response_'.$counter, json_encode($returnString));
+	} else {
+		// update_option('_counter', 0);		
+		update_option('rawg_games_import_started', 'no');
+	}
 }
 
 function get_games_by_tag($page = 1) {
@@ -78,7 +78,7 @@ function get_games_by_tag($page = 1) {
 	$thisYear = date("Y-m-d", time());
 	$pastYear = date("Y-m-d", strtotime(date("Y-m-d", time()) . " - 365 day"));
 	// https://api.rawg.io/api/games?tags=vr&dates=2019-01-01,2020-12-01&ordering=-rating
-	$requestUrl = 'https://api.rawg.io/api/games?tags='.$tag.'&dates='.$pastYear.','.$thisYear.'&ordering=-rating&page_size=5&page='.$page;
+	$requestUrl = 'https://api.rawg.io/api/games?tags='.$tag.'&dates='.$pastYear.','.$thisYear.'&ordering=-rating&page_size=3&page='.$page;
 
 	$request = wp_remote_get( $requestUrl );
 
@@ -230,11 +230,12 @@ function set_game_detail($gameId) {
 
 			// If parent_platforms
 			if ( !empty($data['stores']) ) {
-				foreach ($data['stores'] as $i => $store) {
-					$customFields['stores__url'] = $store['url'];
-					$customFields['stores__store__domain'] = $store['store']['domain'];
-					$customFields['stores__store__name'] = $store['store']['name'];
-				}
+				update_post_meta( $newPostId, '_available_stores', json_encode($data['stores']) );
+				// foreach ($data['stores'] as $i => $store) {
+				// 	$customFields['stores__url'] = $store['url'];
+				// 	$customFields['stores__store__domain'] = $store['store']['domain'];
+				// 	$customFields['stores__store__name'] = $store['store']['name'];
+				// }
 			}
 
 			// If parent_platforms

@@ -154,3 +154,65 @@ function rawg_games_options_page() { ?>
   </div>
 <?php
 }
+
+add_shortcode('get_games', 'rawg_taxonomies'); 
+function rawg_taxonomies( $atts ) {
+
+	// Get shortcodes
+	$a = shortcode_atts( array(
+		"taxonomy" => "",
+	), $atts );
+
+	$postId = get_the_ID();
+
+	if(!empty($postId)) {
+
+		// If taxonomy is set
+		if( !empty($a['taxonomy']) ) {
+			$terms = get_the_terms( $postId, $a['taxonomy'] );
+			if( count($terms) > 0 ) {
+				$html = '';
+				foreach ($terms as $i => $term) {
+					$href  = get_term_link( $term, $a['taxonomy'] );
+					$href  = get_term_link( $term, $a['taxonomy'] );
+					if($i == 0)
+						$html .= '<a href="'.$href.'">'.$term->name.'</a>';
+					else
+						$html .= ', <a href="'.$href.'">'.$term->name.'</a>';
+				}
+				return $html;
+			}
+			else {
+				return json_encode($terms);
+			}
+		} 
+		else {
+			return '-';
+		}
+	}
+	else {
+		return 'postId is empty';
+	}	
+}
+
+add_shortcode('get_game_stores', 'rawg_games_stores'); 
+function rawg_games_stores( $atts ) {
+	$postId = get_the_ID();
+	if(!empty($postId)) {
+		$postMeta = get_post_meta($postId, '_available_stores', true);
+		if(!empty($postMeta)) {
+			$metaArray = json_decode($postMeta, true);
+			$html = '';
+			foreach ($metaArray as $i => $meta) {
+				$html .= '<div class="elementor-element elementor-element-57e327d8 elementor-align-left elementor-widget elementor-widget-button" data-id="57e327d8" data-element_type="widget" data-widget_type="button.default"><div class="elementor-widget-container"><div class="elementor-button-wrapper"><a href="'.$meta['url'].'" target="_blank" rel="nofollow" class="elementor-button-link elementor-button elementor-size-xs" role="button"><span class="elementor-button-content-wrapper"><span class="elementor-button-text">'.$meta['store']['name'].'</span></span></a></div></div></div>';
+			}
+			return $html;
+		}
+		else {
+			return '-';
+		}		
+	}
+	else {
+		return 'postId is empty';
+	}	
+}
