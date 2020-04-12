@@ -239,7 +239,7 @@ function set_game_detail($gameId) {
 
 			// If parent_platforms link
 			if ( !empty($data['platforms']) ) {
-				$pps = '';
+				$html = '<div class="game__system-requirement">';
 				$allCategories = array();				
 				foreach ($data['platforms'] as $i => $pp) {
 					$termName = $pp['platform']['name'];
@@ -253,13 +253,24 @@ function set_game_detail($gameId) {
 						$insertedPlatforms = wp_insert_term( $termName, 'platforms' );
 						$allCategories[] = (int)$insertedPlatforms['term_id'] ;
 					}
-					// if($i == 0)
-					// 	$pps .= $termName;
-					// else
-					// 	$pps .= ', '.$termName;					
+
+					$html .= '<h2 class="heading heading_2 game__block-title game__block-title_inner">System requirements for <span class="game__system-requirement-title">'.$termName.'</span></h2>';
+
+					if( !empty($pp['requirements']['minimum']) ) {
+						$html .= '<div>'.$pp['requirements']['minimum'].'</div>';
+					} else {
+						$html .= 'No minimum requirements needed';
+					}
+
+					if( !empty($pp['requirements']['recommended']) ) {
+						$html .= '<div>'.$pp['requirements']['recommended'].'</div>';
+					} else {
+						$html .= 'Nothing to recommended';
+					}
 				}
+				$html .= '</div>';
 				wp_set_object_terms( $newPostId, $allCategories, 'platforms', false );				
-				// $customFields['platforms__platform__name'] = $pps;
+				$customFields['platforms__platform__name'] = $html;
 			}
 
 			// If parent_platforms
@@ -272,7 +283,7 @@ function set_game_detail($gameId) {
 				// }
 			}
 
-			// If parent_platforms
+			// If developers
 			if ( !empty($data['developers']) ) {
 				$pps = '';
 				foreach ($data['developers'] as $i => $pp) {
@@ -284,7 +295,7 @@ function set_game_detail($gameId) {
 				$customFields['developers__name'] = $pps;			
 			}
 
-			// If parent_platforms
+			// If publishers
 			if ( !empty($data['publishers']) ) {
 				foreach ($data['publishers'] as $i => $publisher) {
 					$customFields['publishers__name'] = $publisher['name'];
@@ -292,14 +303,14 @@ function set_game_detail($gameId) {
 				}
 			}
 
-			// If parent_platforms need link
+			// If genres need link
 			if ( !empty($data['genres']) ) {
 				$pps = '';
 				$allCategories = array();
 				foreach ($data['genres'] as $i => $pp) {
 					$termName = $pp['name'];
 
-					// Checking if parent_platforms exists
+					// Checking if genres exists
 					$categoryId = term_exists( $termName, 'genres' );					
 					if(!empty($categoryId['term_id'])) {
 						$allCategories[] = (int)$categoryId['term_id'];
