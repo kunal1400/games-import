@@ -216,3 +216,20 @@ function rawg_games_stores( $atts ) {
 		return 'postId is empty';
 	}	
 }
+
+// add_action( 'wp_enqueue_scripts', 'so_enqueue_scripts' );
+function so_enqueue_scripts(){
+  wp_register_script( 
+    'ajaxHandle', 
+    plugins_url('js/jquery.ajax.js', __FILE__), 
+    array('jquery'), 
+    false, 
+    true 
+  );
+  wp_enqueue_script( 'ajaxHandle' );
+  wp_localize_script( 
+    'ajaxHandle', 
+    'ajax_object', 
+    array( 'ajaxurl' => admin_url( 'admin-ajax.php' ) ) 
+  );
+}

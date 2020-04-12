@@ -7,39 +7,71 @@ Version: .1
 Author: Kunal Malviya
 */
 
-// If this file is called directly, abort.
-if ( ! defined( 'WPINC' ) ) {
-	die;
-}
+// // If this file is called directly, abort.
+// if ( ! defined( 'WPINC' ) ) {
+// 	die;
+// }
 
-require_once( ABSPATH . 'wp-admin/includes/taxonomy.php');
-include_once( ABSPATH . 'wp-admin/includes/image.php' );
 include 'admin/functions.php';
 
+/**
+* If the name of schedule event is same as previous one then it was not working so 
+* made it dynamic. Now if any issue occur in future then just update the name of event.
+**/
+define('SCHEDULE_HOOK_NAME', 'games_importer_cron_hook');
+
+/*** 
+* When plugin activated then callback function will be called and set schedule 
+***/
+register_activation_hook(__FILE__, 'cp_fb_schedule');
+
+
+/*** 
+* Plugin activation callback function.
+* This function set a schedule by providing Hook to us.
+***/
+function cp_fb_schedule() {
+    // Schedule an action if it's not already scheduled
+	if ( ! wp_next_scheduled( SCHEDULE_HOOK_NAME ) ) {
+	    wp_schedule_event( time(), 'every_one_minute', SCHEDULE_HOOK_NAME );
+	}
+}
+
+/*** 
+* Whenever hook is called then the callback function will run
+***/
+add_action( SCHEDULE_HOOK_NAME, 'per_min_event' );
+
+
+/*** 
+* By this function we are setting the time interval
+***/
 function games_importer_custom_cron_schedule( $schedules ) {
-    $schedules['every_one_minute'] = array(
-        'interval' => 60, // Every 1 hours
-        'display'  => __( 'Every 1 minutes' ),
-    );
+    if( !isset($schedules["every_one_minute"]) ){
+    	$schedules['every_one_minute'] = array(
+	        'interval' => 60, // Every 1 minute
+	        'display'  => __( 'Every 1 minutes' ),
+	    );
+    }
     return $schedules;
 }
 add_filter( 'cron_schedules', 'games_importer_custom_cron_schedule' );
 
-// Schedule an action if it's not already scheduled
-if ( ! wp_next_scheduled( 'games_importer_cron_hook' ) ) {
-    wp_schedule_event( time(), 'every_one_minute', 'games_importer_cron_hook' );
+
+/*** 
+* When plugin deactivated then callback function will be called 
+***/
+register_deactivation_hook(__FILE__, 'my_deactivation');
+
+
+/*** 
+* Plugin deactivation callback function and this function clear a schedule.
+***/
+function my_deactivation() {
+    wp_clear_scheduled_hook( SCHEDULE_HOOK_NAME );
 }
 
-//// Hook into that action that'll fire every six hours
-add_action( 'games_importer_cron_hook', 'per_min_event' );
-
-// add_action('init', 'setTestCategories');
-// function setTestCategories() {
-// 	$allCategories = array( 230, 242, 246 );
-// 	wp_set_object_terms( 447, $allCategories, 'platforms', true );
-// 	// die;
-// }
-
+// add_action('wp_ajax_my_action', 'per_min_event');
 // add_action('init', 'per_min_event');
 function per_min_event() {
 	if(get_option('rawg_games_import_started') == "no") {
@@ -62,7 +94,7 @@ function per_min_event() {
 	/****** END ******/
 
 	// Calling the games api to get vr games
-	$returnString = get_games_by_tag( 1 );
+	$returnString = get_games_by_tag( $counter );
 
 	// If response is not null 
 	if(count($returnString['data']) > 0) {
@@ -71,6 +103,7 @@ function per_min_event() {
 		// update_option('_counter', 0);		
 		update_option('rawg_games_import_started', 'no');
 	}
+
 }
 
 function get_games_by_tag($page = 1) {
@@ -135,6 +168,7 @@ function get_games_by_tag($page = 1) {
 }
 
 function set_game_detail($gameId) {
+	require_once( ABSPATH . 'wp-admin/includes/taxonomy.php');
 	$requestUrl = 'https://api.rawg.io/api/games/'.$gameId;
 
 	$request = wp_remote_get( $requestUrl );
@@ -347,7 +381,7 @@ function save_custom_fields( $customFields, $post_id ) {
 
 // add_action('init','saveRemoteUrl');
 function saveRemoteUrl( $remoteUrl, $slug='' ) {	
-
+	include_once( ABSPATH . 'wp-admin/includes/image.php' );
 	$arrContextOptions = array(
 	    "ssl" => array(
 	        "verify_peer" => false,
