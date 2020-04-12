@@ -12,25 +12,33 @@ Author: Kunal Malviya
 // 	die;
 // }
 
-
+require_once( ABSPATH . 'wp-admin/includes/taxonomy.php');
+include_once( ABSPATH . 'wp-admin/includes/image.php' );
 include 'admin/functions.php';
 
-function games_importer_custom_cron_schedule( $schedules ) {
-    $schedules['every_one_minute'] = array(
-        'interval' => 60, // Every 1 hours
-        'display'  => __( 'Every 1 minutes' ),
-    );
-    return $schedules;
-}
-add_filter( 'cron_schedules', 'games_importer_custom_cron_schedule' );
+// function games_importer_custom_cron_schedule( $schedules ) {
+//     $schedules['every_one_minute'] = array(
+//         'interval' => 60, // Every 1 hours
+//         'display'  => __( 'Every 1 minutes' ),
+//     );
+//     return $schedules;
+// }
+// add_filter( 'cron_schedules', 'games_importer_custom_cron_schedule' );
 
-// Schedule an action if it's not already scheduled
-if ( ! wp_next_scheduled( 'games_importer_cron_hook' ) ) {
-    wp_schedule_event( time(), 'every_one_minute', 'games_importer_cron_hook' );
-}
+// // Schedule an action if it's not already scheduled
+// if ( ! wp_next_scheduled( 'games_importer_cron_hook' ) ) {
+//     wp_schedule_event( time(), 'every_one_minute', 'games_importer_cron_hook' );
+// }
 
-//// Hook into that action that'll fire every six hours
-add_action( 'games_importer_cron_hook', 'per_min_event' );
+// //// Hook into that action that'll fire every six hours
+// add_action( 'games_importer_cron_hook', 'per_min_event' );
+
+// add_action('init', 'setTestCategories');
+// function setTestCategories() {
+// 	$allCategories = array( 230, 242, 246 );
+// 	wp_set_object_terms( 447, $allCategories, 'platforms', true );
+// 	// die;
+// }
 
 // add_action('init', 'per_min_event');
 function per_min_event() {
@@ -38,7 +46,7 @@ function per_min_event() {
 		return;
 	}
 
-	/****** DB COUNTER CODE: START ******/
+	/****** DB COUNTER CODE: START *****
 	$counter = get_option('_counter');
 
 	// If counter is set in db then update
@@ -54,15 +62,15 @@ function per_min_event() {
 	/****** END ******/
 
 	// Calling the games api to get vr games
-	$returnString = get_games_by_tag( $counter );
+	$returnString = get_games_by_tag( 1 );
 
-	// If response is not null 
-	if(count($returnString['data']) > 0) {
-		update_option('_counter_response_'.$counter, json_encode($returnString));
-	} else {
-		// update_option('_counter', 0);		
-		update_option('rawg_games_import_started', 'no');
-	}
+	// // If response is not null 
+	// if(count($returnString['data']) > 0) {
+	// 	update_option('_counter_response_'.$counter, json_encode($returnString));
+	// } else {
+	// 	// update_option('_counter', 0);		
+	// 	update_option('rawg_games_import_started', 'no');
+	// }
 }
 
 function get_games_by_tag($page = 1) {
@@ -153,40 +161,71 @@ function set_game_detail($gameId) {
 		if($newPostId) {
 			
 			// Updating the api url from where we pulled the data
-			update_post_meta($newPostId, '_rawg_api_url', $requestUrl);
+			$customFields['_rawg_api_url'] = $requestUrl;
 
 			$customFields = array( 
 				'name_original' => $data['name_original'],
 				'released' => $data['released'], 
 				'tba' => $data['tba'],
 				'description_raw' => $data['description_raw'],
-				'metacritic' => $data['metacritic'],
+				'metacritic' => 76,
 				'playtime' => $data['playtime'],
 				'website' => $data['website']
 			);
 
+			// If metacritic
+			if ( !empty($data['metacritic']) ) {				
+				$customFields['metacritic'] = $data['metacritic'];
+			}
+
 			// If parent_platforms
 			if ( !empty($data['parent_platforms']) ) {
 				$pps = '';
-				foreach ($data['parent_platforms'] as $i => $pp) {
-					if($i == 0)
-						$pps .= $pp['platform']['name'];
-					else
-						$pps .= ', '.$pp['platform']['name'];					
+				$allCategories = array();
+				foreach ($data['parent_platforms'] as $i => $pp) {					
+					$termName = $pp['platform']['name'];
+
+					// Checking if parent_platforms exists
+					$categoryId = term_exists( $termName, 'platforms' );					
+					if(!empty($categoryId['term_id'])) {
+						$allCategories[] = (int)$categoryId['term_id'];
+					}
+					else {
+						$insertedPlatforms = wp_insert_term( $termName, 'platforms' );
+						$allCategories[] = (int)$insertedPlatforms['term_id'] ;
+					}
+					// if($i == 0)
+					// 	$pps .= $pp['platform']['name'];
+					// else
+					// 	$pps .= ', '.$pp['platform']['name'];					
 				}
-				$customFields['parent_platforms__platform__name'] = $pps;
+				wp_set_object_terms( $newPostId, $allCategories, 'platforms', false );
+				// $customFields['parent_platforms__platform__name'] = $pps;
 			}
 
 			// If parent_platforms link
 			if ( !empty($data['platforms']) ) {
 				$pps = '';
+				$allCategories = array();				
 				foreach ($data['platforms'] as $i => $pp) {
-					if($i == 0)
-						$pps .= $pp['platform']['name'];
-					else
-						$pps .= ', '.$pp['platform']['name'];					
+					$termName = $pp['platform']['name'];
+
+					// Checking if parent_platforms exists
+					$categoryId = term_exists( $termName, 'platforms' );					
+					if(!empty($categoryId['term_id'])) {
+						$allCategories[] = (int)$categoryId['term_id'];
+					}
+					else {
+						$insertedPlatforms = wp_insert_term( $termName, 'platforms' );
+						$allCategories[] = (int)$insertedPlatforms['term_id'] ;
+					}
+					// if($i == 0)
+					// 	$pps .= $termName;
+					// else
+					// 	$pps .= ', '.$termName;					
 				}
-				$customFields['platforms__platform__name'] = $pps;
+				wp_set_object_terms( $newPostId, $allCategories, 'platforms', false );				
+				// $customFields['platforms__platform__name'] = $pps;
 			}
 
 			// If parent_platforms
@@ -221,24 +260,51 @@ function set_game_detail($gameId) {
 			// If parent_platforms need link
 			if ( !empty($data['genres']) ) {
 				$pps = '';
+				$allCategories = array();
 				foreach ($data['genres'] as $i => $pp) {
-					if($i == 0)
-						$pps .= $pp['name'];
-					else
-						$pps .= ', '.$pp['name'];					
-				}
-				$customFields['genres__name'] = $pps;			
+					$termName = $pp['name'];
+
+					// Checking if parent_platforms exists
+					$categoryId = term_exists( $termName, 'genres' );					
+					if(!empty($categoryId['term_id'])) {
+						$allCategories[] = (int)$categoryId['term_id'];
+					}
+					else {
+						$insertedPlatforms = wp_insert_term( $termName, 'genres' );
+						$allCategories[] = (int)$insertedPlatforms['term_id'] ;
+					}
+
+					// // Checking if category exists if not then insert default wp category
+					// $categoryId = term_exists( $pp['name'], 'category' );					
+					// if(!empty($categoryId['term_id'])) {
+					// 	$allCategories[] = $categoryId['term_id'];
+					// }
+					// else {
+					// 	$allCategories[] = wp_insert_category( array('cat_name' => $pp['name']) );
+					// }
+
+					// if($i == 0)
+					// 	$pps .= $pp['name'];
+					// else
+					// 	$pps .= ', '.$pp['name'];					
+				}				
+				// wp_set_post_categories( $newPostId, $allCategories, true );
+				wp_set_object_terms( $newPostId, $allCategories, 'genres', false );				
+				// $customFields['genres__name'] = $pps;
 			}
 
 			// If parent_platforms
 			if ( !empty($data['tags']) ) {
 				$pps = '';
+				$allTags = array();
 				foreach ($data['tags'] as $i => $pp) {
+					$allTags[] = $pp['name'];
 					if($i == 0)
 						$pps .= $pp['name'];
 					else
 						$pps .= ', '.$pp['name'];					
 				}
+				// wp_set_post_tags( $newPostId, $allTags, true );
 				$customFields['tags__name'] = $pps;
 			}
 
@@ -279,8 +345,7 @@ function save_custom_fields( $customFields, $post_id ) {
 }
 
 // add_action('init','saveRemoteUrl');
-function saveRemoteUrl( $remoteUrl, $slug='' ) {
-	include_once( ABSPATH . 'wp-admin/includes/image.php' );
+function saveRemoteUrl( $remoteUrl, $slug='' ) {	
 
 	$arrContextOptions = array(
 	    "ssl" => array(
