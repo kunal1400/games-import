@@ -68,6 +68,7 @@ register_deactivation_hook(__FILE__, 'my_deactivation');
 * Plugin deactivation callback function and this function clear a schedule.
 ***/
 function my_deactivation() {
+	update_option('_counter', 0);
     wp_clear_scheduled_hook( SCHEDULE_HOOK_NAME );
 }
 
@@ -258,14 +259,10 @@ function set_game_detail($gameId) {
 
 					if( !empty($pp['requirements']['minimum']) ) {
 						$html .= '<div>'.$pp['requirements']['minimum'].'</div>';
-					} else {
-						$html .= 'No minimum requirements needed';
 					}
 
 					if( !empty($pp['requirements']['recommended']) ) {
 						$html .= '<div>'.$pp['requirements']['recommended'].'</div>';
-					} else {
-						$html .= 'Nothing to recommended';
 					}
 				}
 				$html .= '</div>';
