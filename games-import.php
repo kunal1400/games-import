@@ -7,10 +7,10 @@ Version: .1
 Author: Kunal Malviya
 */
 
-// If this file is called directly, abort.
-if ( ! defined( 'WPINC' ) ) {
-	die;
-}
+// // If this file is called directly, abort.
+// if ( ! defined( 'WPINC' ) ) {
+// 	die;
+// }
 
 
 include 'admin/functions.php';
@@ -60,7 +60,7 @@ function per_min_event() {
 	if($returnString) {
 		update_option('_counter_response_'.$counter, json_encode($returnString));
 	} else {
-		update_option('_counter', 0);		
+		// update_option('_counter', 0);		
 		update_option('rawg_games_import_started', 'no');
 	}
 }
@@ -86,7 +86,7 @@ function get_games_by_tag($page = 1) {
 		$insertedIds = array();
 		foreach ($data['results'] as $index => $gameInfo) {
 			$postType = 'games';
-			$minimumRatingsCount = 15;
+			$minimumRatingsCount = 5;
 			
 			// Setting the custom filters because some paramters are not present in api
 			if( !empty($gameInfo['ratings_count']) && $gameInfo['ratings_count'] > $minimumRatingsCount ) {
