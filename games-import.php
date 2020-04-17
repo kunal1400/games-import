@@ -15,7 +15,6 @@ if ( ! defined( 'WPINC' ) ) {
 
 include 'admin/functions.php';
 
-
 function games_importer_custom_cron_schedule( $schedules ) {
     $schedules['every_one_minute'] = array(
         'interval' => 60, // Every 1 hours
@@ -33,9 +32,11 @@ if ( ! wp_next_scheduled( 'games_importer_cron_hook' ) ) {
 //// Hook into that action that'll fire every six hours
 add_action( 'games_importer_cron_hook', 'per_min_event' );
 
-
 // add_action('init', 'per_min_event');
 function per_min_event() {
+	if(get_option('rawg_games_import_started') == "no") {
+		return;
+	}
 
 	/****** DB COUNTER CODE: START ******/
 	$counter = get_option('_counter');
@@ -55,17 +56,20 @@ function per_min_event() {
 	// Calling the games api to get vr games
 	$returnString = get_games_by_tag( $counter );
 
-	// // If response is not null 
-	// if($returnString) {
-	// 	update_option('_counter_response_'.$counter, json_encode($returnString));
-	// }
+	// If response is not null 
+	if($returnString) {
+		update_option('_counter_response_'.$counter, json_encode($returnString));
+	} else {
+		update_option('rawg_games_import_started', 'no');
+	}
 }
 
 function get_games_by_tag($page = 1) {
 	$tag = 'vr';
-	$requestUrl = 'https://api.rawg.io/api/games?tags='.$tag.'&dates=2019-01-01,2020-12-01&ordering=-rating&page_size=5&page='.$page;
-
+	$thisYear = date("Y-m-d", time());
+	$pastYear = date("Y-m-d", strtotime(date("Y-m-d", time()) . " - 365 day"));
 	// https://api.rawg.io/api/games?tags=vr&dates=2019-01-01,2020-12-01&ordering=-rating
+	$requestUrl = 'https://api.rawg.io/api/games?tags='.$tag.'&dates='.$pastYear.','.$thisYear.'&ordering=-rating&page_size=5&page='.$page;
 
 	$request = wp_remote_get( $requestUrl );
 
@@ -74,15 +78,46 @@ function get_games_by_tag($page = 1) {
 	}
 
 	$body = wp_remote_retrieve_body( $request );
-	$data = json_decode( $body, true );
-	
+	$data = json_decode( $body, true );	
+
 	// If count is greater than 0 then start download
-	if( $data['results'] && count($data['results']) > 0 ) {		
+	if( $data['results'] && count($data['results']) > 0 ) {
 		$insertedIds = array();
-		$i = -1;
-		$allItems = count($data['results']);
-		return fetchNext($data, $i, $allItems);
-		// return $insertedIds;
+		foreach ($data['results'] as $index => $gameInfo) {
+			$postType = 'games';
+			$minimumRatingsCount = 15;
+			
+			// Setting the custom filters because some paramters are not present in api
+			if( !empty($gameInfo['ratings_count']) && $gameInfo['ratings_count'] > $minimumRatingsCount ) {
+
+				// Checking if post with same slug is present in db or not
+				$dbPosts = get_posts(array(
+				  'name'        => $gameInfo['slug'],
+				  'post_type'   => $postType,
+				  'post_status' => array('draft', 'publish'),
+				  'numberposts' => 1
+				));		
+
+				// If post not exists then get call game detail api do insert in db
+				if( count($dbPosts) == 0 ) {
+					// echo "<p>Post Not exists</p>";
+					$insertedIds[] = set_game_detail($gameInfo['id']);
+				}
+				else {
+					// echo "<p>Post exists</p>";
+					$insertedIds[] = $gameInfo['slug'].' already present';					
+				}				
+			}
+			else {
+				$message = $gameInfo['slug'].' ratings_count is smaller than '.$minimumRatingsCount;
+				// echo $message;
+				$insertedIds[] = $message;
+			}
+		}	
+		// echo '<pre>';
+		// print_r($insertedIds);
+		// echo '</pre>';
+		return $insertedIds;
 	}
 	else {
 		// All apis has been called with pagination
@@ -286,8 +321,8 @@ function saveRemoteUrl( $remoteUrl, $slug='' ) {
 }
 
 function fetchNext($data, $index, $totalItems) {
-	$index++;	
-	// echo 'Looping ==>'.$index.'/'.$totalItems.'<br/>';
+	$index++;
+	echo 'Looping ==>'.$index.'/'.$totalItems.'<br/>';
 	if( $index < $totalItems ) {
 		$gameInfo = $data['results'][$index];
 		$postType = 'games';
@@ -306,24 +341,30 @@ function fetchNext($data, $index, $totalItems) {
 
 			// If post not exists then get call game detail api do insert in db
 			if( count($dbPosts) == 0 ) {
-				// echo "<p>Post Not exists</p>";
+				echo "<p>Post Not exists</p>";
 				$insertedIds[] = set_game_detail($gameInfo['id']);
 				fetchNext($data, $index, $totalItems);
 			}
 			else {
-				// echo "<p>Post exists</p>";
+				echo "<p>Post exists</p>";
 				$insertedIds[] = $gameInfo['slug'].' already present';					
 				fetchNext($data, $index, $totalItems);	
 			}
 			
 		}
 		else {
-			// echo "<p>ratings_count is smaller than $minimumRatingsCount</p>";
+			$message = $gameInfo['slug'].' ratings_count is smaller than '.$minimumRatingsCount;
+			echo $message;
+			$insertedIds[] = $message;
 			fetchNext($data, $index, $totalItems);			
 		}
 	}
 	else {
+		echo "<p>Iteration completed</p>";
+		// echo '<pre>';
+		// print_r($insertedIds);
+		// echo '</pre>';
 		// Iteration completed
-		return $insertedIds;
+		// return $insertedIds;
 	}
 }
