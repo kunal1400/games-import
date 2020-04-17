@@ -60,6 +60,7 @@ function per_min_event() {
 	if($returnString) {
 		update_option('_counter_response_'.$counter, json_encode($returnString));
 	} else {
+		update_option('_counter', 0);		
 		update_option('rawg_games_import_started', 'no');
 	}
 }
